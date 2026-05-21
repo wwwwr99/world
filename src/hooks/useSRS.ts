@@ -17,7 +17,10 @@ export function useSRS(allWordIds: number[]) {
   const fullQueue = useMemo(() => {
     const data = loadSRSData()
     const { due, newCards } = getDueWords(allWordIds, data)
-    return [...due, ...shuffle(newCards)]
+    const queue = [...due, ...shuffle(newCards)]
+    if (queue.length > 0) return queue
+    if (allWordIds.length > 0) return shuffle([...allWordIds])
+    return []
   }, [allWordIds])
 
   const rate = useCallback(
