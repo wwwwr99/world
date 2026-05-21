@@ -12,20 +12,20 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function useSRS(allWordIds: number[]) {
-  const [srsData, setSRSData] = useState<Map<number, SRSCard>>(loadSRSData)
+  const [, setSRSData] = useState<Map<number, SRSCard>>(() => loadSRSData())
 
-  const queue = useMemo(() => {
-    const { due, newCards } = getDueWords(allWordIds, srsData)
+  const fullQueue = useMemo(() => {
+    const data = loadSRSData()
+    const { due, newCards } = getDueWords(allWordIds, data)
     return [...due, ...shuffle(newCards)]
-  }, [allWordIds, srsData])
+  }, [allWordIds])
 
   const rate = useCallback(
     (wordId: number, rating: 0 | 1 | 2 | 3) => {
-      const updated = rateCard(wordId, rating, srsData)
-      setSRSData(updated)
+      setSRSData((prev) => rateCard(wordId, rating, prev))
     },
-    [srsData],
+    [],
   )
 
-  return { srsData, queue, rate }
+  return { fullQueue, rate }
 }
