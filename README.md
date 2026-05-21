@@ -1,26 +1,28 @@
 # VocabCard — 英语单词卡片记忆
 
-基于 SM-2 间隔重复算法的词汇记忆工具，50 个 CET-6 核心词汇，白色极简卡片设计，键盘驱动的高效学习体验。
+基于 SM-2 间隔重复算法的词汇记忆工具。50 个 CET-6 核心词汇，渐变质感卡片，楷体中文释义 clip-path reveal 动画，键盘驱动的分组学习体验。
 
-## 界面预览
+## 界面
 
-纯白卡片居中展示，词性标签 → 单词（Georgia 衬线体）→ IPA 音标 → 点击后释义平滑浮现。底部四色评级按钮对应 Anki 同款 SM-2 算法。Framer Motion 驱动卡片切换动画，毛玻璃底栏导航，整体保持克制的高级感。
+白色卡片悬浮于微渐变背景之上，多层阴影营造纸张悬浮感。词性标签 → 单词（Georgia 衬线体）→ IPA 音标（等宽字体）→ 点击后中文释义以 clip-path 动画从左侧逐笔画方向展开，楷体渲染带 text-shadow 深度感。底部四色评级按钮对应 SM-2 算法。卡片切换采用 120ms 纯淡入淡出，消除 GPU filter 开销。
 
 ## 功能
 
-- **SM-2 间隔重复** — Anki 同款算法，根据评分自动计算下次复习时间，数据持久化在 localStorage
-- **键盘优先** — Space 显义/发音，1-4 评分，← 回退上一张，→ 快速通过，全程无需鼠标
-- **Web Speech API 发音** — 浏览器原生 TTS，第一次点击卡片自动朗读，后续通过喇叭按钮手动触发
-- **学习统计** — 连续打卡天数、已掌握词数、待复习量、总进度条
-- **词库随机打乱** — Fisher-Yates 洗牌，每轮学习顺序不同，避免首字母顺序记忆
-- **PWA 就绪** — meta 标签和 manifest 已配置，手机浏览器可添加到桌面
+- **SM-2 间隔重复** — Anki 同款算法，记录 `lastRating`，困难/重来词在后续队列中优先排列
+- **分组学习** — 每轮可选 5/10/15/20 或全部词，学完一组可选择"重学本组"、"下一组"或"全新一轮"
+- **键盘优先** — Space 显义/发音，1-4 评分，← 回退上一张，→ 快速通过
+- **中文 reveal 动画** — CSS `clip-path: inset` + `text-shadow`，文字从左向右展开，模拟笔画书写方向
+- **楷体翻译** — 系统原生楷体（KaiTi / STKaiti），无需加载 Web Font
+- **发音** — Web Speech API，首次点击卡片自动朗读，后续喇叭按钮手动触发，RAF 延迟消除覆盖冲突
+- **学习统计** — 连续打卡天数、已掌握词数（interval ≥ 21）、待复习量
+- **随机打乱** — Fisher-Yates 洗牌，每轮不同顺序，new cards 随机排列避免首字母记忆
 
 ## 快速开始
 
 ```bash
 npm install
-npm run dev      # 开发 → http://localhost:5173
-npm run build    # 生产构建 → dist/
+npm run dev      # → http://localhost:5173
+npm run build    # → dist/
 ```
 
 ## 快捷键
@@ -30,7 +32,7 @@ npm run build    # 生产构建 → dist/
 | Space | 显示释义 / 发音 |
 | 1 / 2 / 3 / 4 | 评分：重来 / 困难 / 良好 / 简单 |
 | ← | 返回上一张 |
-| → | 显示释义 或 快速通过（等同于"良好"） |
+| → | 显示释义 或 快速通过（等同"良好"） |
 
 ## 技术栈
 
@@ -39,40 +41,46 @@ React 19 · TypeScript · Tailwind CSS 3 · Framer Motion · React Router 7 · V
 ## 设计取舍与优缺点
 
 **优点**
-- 零外部 API 依赖 — 词库静态内置，发音用浏览器原生能力，离线可用，没有后端维护成本
-- 卡片视觉聚焦 — 一张卡片只展示一个单词，无干扰元素，符合间隔重复的"最小信息原则"
-- 键盘驱动 — 熟练后每秒可过 3-5 张卡片，效率远高于触屏点按
-- SM-2 实现精简 — 核心逻辑不到 60 行，不依赖第三方算法库
+- 零外部 API 依赖，离线可用，无后端
+- 卡片视觉聚焦，符合间隔重复"最小信息原则"
+- 键盘驱动，熟练后每秒 3-5 张卡片
+- SM-2 核心逻辑不到 70 行
+- 系统楷体 + CSS clip-path reveal，无需加载字体文件或 JS 逐字动画库
 
 **不足**
-- 词库仅 50 词，尚未支持自定义导入 CSV/JSON 词表
-- Web Speech API 在不同浏览器上语音质量不一致（Chrome 最优，Firefox 较差），且首次调用有约 200-500ms 冷启动延迟
-- 缺乏图片辅助记忆（百词斩的核心差异化能力），纯文字卡片对抽象词汇的联想效果有限
-- localStorage 存储方案无法跨设备同步，换手机数据丢失
-- 未实现深色模式
+- 词库仅 50 词，暂不支持自定义导入
+- Web Speech API 浏览器语音质量不一致（Chrome 最优），首次调用有 ~200-500ms 冷启动延迟
+- 无图片辅助记忆，纯文字卡片对抽象词汇联想有限
+- localStorage 无法跨设备同步
+- 无深色模式
 
 ## 开发中遇到的问题与解决
 
-### 1. 卡片切换卡顿
-**现象** — Framer Motion AnimatePresence 在两张卡片过渡时出现明显掉帧，尤其在低端设备上。
+### 1. 卡片切换卡顿（两轮优化）
+**现象** — 初版使用 `blur` filter + scale + translateX 三组动画叠加，Chrome Performance 面板显示帧时间 60-80ms。
 
-**排查过程** — 用 Chrome DevTools Performance 面板录制，发现帧时间高达 60-80ms（目标 16.7ms）。逐帧分析发现瓶颈在 CSS `blur()` filter 动画 — 浏览器需要对卡片内容逐像素做高斯模糊再反向还原，触发大量 GPU 合成层重绘。
+**第一轮** — 去掉 `blur` filter（GPU 逐像素高斯模糊），duration 500→300ms，移除 scale 变换。改善明显但仍偶有掉帧。
 
-**解决** — 用 `opacity` + `translateY` 替代 `blur` + `translateY`。动画时长从 500ms 压到 300ms（翻译浮现）和 200ms（卡片切换）。去掉 scale 变换，减少 GPU 合成层的尺寸变化。最终在普通设备上稳定 60fps。
+**第二轮** — 进一步移除 translateX 位移，简化为纯 `opacity` 淡入淡出 120ms。AnimatePresence 保留 `mode="wait"` 但每帧只需处理单层透明度变化。最终稳定 60fps，包括低端设备。
 
-### 2. 发音与卡片点击的时序冲突
-**现象** — 快速点击卡片后立刻点喇叭按钮，两个 `speak()` 调用互相干扰，浏览器语音队列出现竞争，表现为延迟或无声音。
+### 2. 发音与卡片点击时序冲突
+**现象** — 快速点击卡片再点喇叭，浏览器语音队列出现竞争，延迟或无声音。
 
-**根因** — `SpeechSynthesis.cancel()` 是异步操作，但 Chrome 的实现中 cancel 不会立即清空队列，后续 `speak()` 可能与残留的 utterance 产生冲突。
+**根因** — Chrome 的 `SpeechSynthesis.cancel()` 不会同步清空内部队列，后续 `speak()` 与残留 utterance 产生竞态。
 
-**解决** — 将 `speak()` 中的 `cancel()` 与 `speak()` 之间插入 `requestAnimationFrame` 延迟，确保 cancel 在当前帧完成后再创建新的 utterance。同时将语速从 0.85 调至 0.95，降低感知延迟。
+**解决** — 在 `cancel()` 与 `speak()` 之间插入 `requestAnimationFrame`，确保浏览器在下一帧前完成队列清理。语速从 0.85 调至 0.95。`volume: 1` 显式设置避免默认值抖动。
 
-### 3. SM-2 数据一致性与 React 状态管理
-**现象** — 评级操作 → 写入 localStorage → 重新计算 due queue，但 `useSRS` hook 中的 queue 依赖 `srsData` state，每次 rating 后 queue 立即变化，导致当前进度条索引与 queue 错位。
+### 3. SM-2 queue 与 rating 的解耦
+**现象** — 评级操作更新 `srsData` state → queue 依赖此 state 重新计算 → 进度条索引错位。
 
-**解决** — 将 queue（卡片顺序）与 srsData（评分记录）解耦。queue 只在组件挂载时根据 due/new 计算一次，rating 操作更新 srsData 但不触发 queue 重新计算。下次打开应用时新的 srsData 才会影响 queue 顺序。
+**解决** — queue 在组件挂载时根据 due/new 一次性计算，`rate` 更新 srsData 但不触发 queue 重算。"全新一轮"时通过 `key` 变更强制重新挂载，触发全新 queue 计算。
 
-### 4. "上一张"功能的状态回溯
-**现象** — 简单的 `currentIndex - 1` 在同一次会话中可以回退，但无法正确处理"回退后重新评分"的场景 — 需要上一次的评分记录被新的覆盖。
+### 4. 上一张功能的状态回溯
+**现象** — `currentIndex - 1` 可以回退，但同卡片多次评分时旧记录需被新记录覆盖。
 
-**解决** — 引入 `history` 栈追踪浏览路径。`goBack()` 从栈中弹出上一张的索引并恢复。重新评分时 SM-2 的 `rateCard` 方法用 `Map.set` 覆盖旧记录，天然支持同一单词在本次会话中多次评分，无需额外去重逻辑。
+**解决** — `history` 栈追踪浏览路径（存绝对索引）。`goBack()` 弹栈并恢复位置，必要时自动回退到上一组（`batchStart` 重新计算）。SM-2 的 `rateCard` 用 `Map.set` 覆盖旧记录，天然支持同词多次评分。
+
+### 5. clip-path reveal 动画的跨卡片复用
+**现象** — CSS `@keyframes` 动画只在元素首次挂载时播放，AnimatePresence 的组件缓存可能导致动画不触发。
+
+**解决** — 使用 React 的 `key={word.id}` 确保每张卡片是独立 DOM 实例。翻译文字条件渲染（`{revealed ? <p className="reveal-text">... : null}`），每次 revealed 切换时元素销毁重建，动画自动重播。与 AnimatePresence 的卸载/挂载周期天然配合。

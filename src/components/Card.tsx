@@ -7,26 +7,24 @@ interface CardProps {
 }
 
 const posColors: Record<string, string> = {
-  'n.': 'bg-blue-50 text-blue-700',
-  'v.': 'bg-amber-50 text-amber-700',
-  'adj.': 'bg-emerald-50 text-emerald-700',
-  'adv.': 'bg-violet-50 text-violet-700',
+  'n.': 'bg-blue-50/80 text-blue-600',
+  'v.': 'bg-amber-50/80 text-amber-600',
+  'adj.': 'bg-emerald-50/80 text-emerald-600',
+  'adv.': 'bg-violet-50/80 text-violet-600',
 }
 
 export default function Card({ word, revealed, onReveal }: CardProps) {
-  const badgeColor =
-    posColors[word.pos] ?? 'bg-gray-100 text-gray-600'
+  const badgeColor = posColors[word.pos] ?? 'bg-gray-100/80 text-gray-500'
 
   return (
     <div
       onClick={() => !revealed && onReveal()}
-      className="w-full max-w-md mx-auto bg-white rounded-3xl card-shadow px-10 py-12
+      className="w-full max-w-md mx-auto card-premium rounded-3xl px-10 py-12
                  flex flex-col items-center justify-center min-h-[420px]
-                 cursor-pointer select-none active:scale-[0.98]"
-      style={{ willChange: 'transform' }}
+                 cursor-pointer select-none"
     >
       <span
-        className={`text-xs font-semibold tracking-wider uppercase px-3 py-1 rounded-full mb-8 ${badgeColor}`}
+        className={`text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded-full mb-8 ${badgeColor}`}
       >
         {word.pos}
       </span>
@@ -35,23 +33,24 @@ export default function Card({ word, revealed, onReveal }: CardProps) {
         {word.word}
       </h2>
 
-      <p className="text-base text-gray-400 mb-8 tracking-wide">{word.phonetic}</p>
+      <p className="text-sm text-gray-400 mb-8 tracking-widest font-mono">
+        {word.phonetic}
+      </p>
 
-      <div
-        className={`transition-opacity duration-300 ${
-          revealed ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        <p className="text-xl text-gray-700 font-medium text-center">
-          {word.translation}
-        </p>
+      <div className="min-h-[48px] flex items-center">
+        {revealed ? (
+          <p
+            key={word.id}
+            className="reveal-text font-kai text-2xl text-gray-700 text-center leading-relaxed"
+          >
+            {word.translation}
+          </p>
+        ) : (
+          <p className="text-sm text-gray-300 animate-pulse">
+            点击卡片显示释义
+          </p>
+        )}
       </div>
-
-      {!revealed && (
-        <p className="text-sm text-gray-300 mt-8 animate-pulse">
-          点击卡片显示释义
-        </p>
-      )}
     </div>
   )
 }

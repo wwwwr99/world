@@ -3,7 +3,8 @@ export interface SRSCard {
   ease: number
   interval: number
   repetitions: number
-  nextReview: number // timestamp
+  nextReview: number
+  lastRating?: number
 }
 
 const STORAGE_KEY = 'vocabcard_srs'
@@ -58,7 +59,7 @@ export function rateCard(
 
   const nextReview = now + interval * 24 * 60 * 60 * 1000
 
-  const updated: SRSCard = { wordId, ease, interval, repetitions, nextReview }
+  const updated: SRSCard = { wordId, ease, interval, repetitions, nextReview, lastRating: rating }
   const newData = new Map(data)
   newData.set(wordId, updated)
   saveSRSData(newData)
@@ -81,6 +82,13 @@ export function getDueWords(
       due.push(id)
     }
   }
+
+  // Sort due: lower lastRating = harder = higher priority
+  due.sort((a, b) => {
+    const ra = data.get(a)?.lastRating ?? 2
+    const rb = data.get(b)?.lastRating ?? 2
+    return ra - rb
+  })
 
   return { due, newCards }
 }

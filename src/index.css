@@ -13,13 +13,37 @@ body {
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f1f5f9;
+  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 40%, #e5eaf0 100%);
   min-height: 100vh;
+  background-attachment: fixed;
 }
 
-.card-shadow {
+.font-kai {
+  font-family: 'KaiTi', 'STKaiti', 'Kai', '楷体', 'Noto Serif SC', serif;
+}
+
+.card-premium {
+  background: linear-gradient(145deg, #ffffff 0%, #fcfcfd 100%);
   box-shadow:
-    0 4px 6px -1px rgb(0 0 0 / 0.05),
-    0 10px 15px -3px rgb(0 0 0 / 0.05),
-    0 0 0 1px rgb(0 0 0 / 0.03);
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 4px 16px rgba(0, 0, 0, 0.05),
+    0 8px 32px rgba(0, 0, 0, 0.04),
+    0 20px 48px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@keyframes text-reveal {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.4;
+  }
+  100% {
+    clip-path: inset(0 0% 0 0);
+    opacity: 1;
+  }
+}
+
+.reveal-text {
+  animation: text-reveal 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0.5px rgba(0, 0, 0, 0.04);
 }

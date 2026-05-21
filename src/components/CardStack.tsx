@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Card from './Card'
 import type { Word } from '../data/words'
@@ -6,33 +6,62 @@ import type { Word } from '../data/words'
 interface CardStackProps {
   words: Word[]
   queue: number[]
+  batchSize: number
+  onRoundDone: () => void
   onRate: (wordId: number, rating: 0 | 1 | 2 | 3) => void
   onSpeak: (text: string) => void
 }
 
-export default function CardStack({ words, queue, onRate, onSpeak }: CardStackProps) {
+export default function CardStack({
+  words,
+  queue,
+  batchSize,
+  onRoundDone,
+  onRate,
+  onSpeak,
+}: CardStackProps) {
+  const effectiveSize = batchSize === 0 ? queue.length : Math.min(batchSize, queue.length)
+
+  const [batchStart, setBatchStart] = useState(0)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [history, setHistory] = useState<number[]>([])
 
-  const currentWordId = queue[currentIndex]
+  const batchQueue = useMemo(
+    () => queue.slice(batchStart, batchStart + effectiveSize),
+    [queue, batchStart, effectiveSize],
+  )
+
+  const absoluteIndex = batchStart + currentIndex
+  const currentWordId = batchQueue[currentIndex]
   const currentWord = words.find((w) => w.id === currentWordId) ?? null
-  const isFinished = currentIndex >= queue.length
-  const progress = queue.length > 0 ? ((currentIndex) / queue.length) * 100 : 0
+  const isBatchFinished = currentIndex >= batchQueue.length
+  const hasMoreBatches = batchStart + effectiveSize < queue.length
+  const progress = batchQueue.length > 0 ? (currentIndex / batchQueue.length) * 100 : 0
 
   const advance = useCallback(() => {
-    setHistory((h) => [...h, currentIndex])
+    setHistory((h) => [...h, absoluteIndex])
     setRevealed(false)
-    requestAnimationFrame(() => setCurrentIndex((i) => i + 1))
-  }, [currentIndex])
+    if (currentIndex + 1 >= batchQueue.length) {
+      setCurrentIndex(batchQueue.length) // triggers finished state
+    } else {
+      requestAnimationFrame(() => setCurrentIndex((i) => i + 1))
+    }
+  }, [currentIndex, batchQueue.length, absoluteIndex])
 
   const goBack = useCallback(() => {
     if (history.length === 0) return
-    const prevIndex = history[history.length - 1]
+    const prevAbsoluteIdx = history[history.length - 1]
     setHistory((h) => h.slice(0, -1))
     setRevealed(true)
-    setCurrentIndex(prevIndex)
-  }, [history])
+
+    if (prevAbsoluteIdx < batchStart || prevAbsoluteIdx >= batchStart + effectiveSize) {
+      setBatchStart(Math.floor(prevAbsoluteIdx / effectiveSize) * effectiveSize)
+      setCurrentIndex(prevAbsoluteIdx % effectiveSize)
+    } else {
+      setCurrentIndex(prevAbsoluteIdx - batchStart)
+    }
+  }, [history, batchStart, effectiveSize])
 
   const handleRate = (rating: 0 | 1 | 2 | 3) => {
     if (!currentWord) return
@@ -40,17 +69,38 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
     advance()
   }
 
+  const handleNextBatch = () => {
+    setBatchStart((b) => b + effectiveSize)
+    setCurrentIndex(0)
+    setHistory([])
+    setRevealed(false)
+  }
+
+  const handleRestartBatch = () => {
+    setCurrentIndex(0)
+    setHistory([])
+    setRevealed(false)
+  }
+
+  const handleNewRound = () => {
+    setBatchStart(0)
+    setCurrentIndex(0)
+    setHistory([])
+    setRevealed(false)
+    onRoundDone()
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (isFinished) return
+      if (isBatchFinished) return
       if (e.key === ' ') {
         e.preventDefault()
-        if (!revealed) {
+        if (!revealed && currentWord) {
           setRevealed(true)
-          if (currentWord) onSpeak(currentWord.word)
-        } else {
-          if (currentWord) onSpeak(currentWord.word)
+          onSpeak(currentWord.word)
+        } else if (currentWord) {
+          onSpeak(currentWord.word)
         }
       }
       if (e.key === 'ArrowLeft') {
@@ -59,9 +109,9 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault()
-        if (!revealed) {
+        if (!revealed && currentWord) {
           setRevealed(true)
-          if (currentWord) onSpeak(currentWord.word)
+          onSpeak(currentWord.word)
         } else {
           handleRate(2)
         }
@@ -74,67 +124,88 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [currentIndex, revealed, isFinished, currentWord, goBack])
+  }, [currentIndex, revealed, isBatchFinished, currentWord, goBack])
 
-  if (isFinished) {
+  if (isBatchFinished) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[420px] gap-6">
-        <div className="text-6xl">&#127881;</div>
-        <h3 className="text-2xl font-semibold text-gray-800">本轮学习完成</h3>
-        <p className="text-gray-500">
-          复习了 {queue.length} 张卡片，继续保持！
+        <div className="text-5xl">&#x2728;</div>
+        <h3 className="text-2xl font-semibold text-gray-800">本组完成</h3>
+        <p className="text-gray-500 text-sm">
+          {batchQueue.length} 张卡片已过完
         </p>
-        <button
-          onClick={() => {
-            setCurrentIndex(0)
-            setHistory([])
-            setRevealed(false)
-          }}
-          className="mt-4 px-8 py-3 bg-gray-900 text-white rounded-2xl font-medium
-                     hover:bg-gray-800 transition-colors"
-        >
-          再来一轮
-        </button>
+        <div className="flex gap-3 mt-2">
+          <button
+            onClick={handleRestartBatch}
+            className="px-5 py-2.5 bg-white card-premium rounded-2xl text-sm font-medium
+                       text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            重学本组
+          </button>
+          {hasMoreBatches ? (
+            <button
+              onClick={handleNextBatch}
+              className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-sm font-medium
+                         hover:bg-gray-800 transition-colors"
+            >
+              下一组
+            </button>
+          ) : (
+            <button
+              onClick={handleNewRound}
+              className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-sm font-medium
+                         hover:bg-gray-800 transition-colors"
+            >
+              全新一轮
+            </button>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto">
+    <div className="flex flex-col items-center gap-5 w-full max-w-md mx-auto">
       {/* Progress bar */}
-      <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-gray-200/60 rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-gray-800 rounded-full"
+          className="h-full bg-gray-700 rounded-full"
           animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         />
       </div>
-      <p className="text-xs text-gray-400 -mt-4">
-        {currentIndex + 1} / {queue.length}
+      <p className="text-xs text-gray-400 -mt-3">
+        {currentIndex + 1} / {batchQueue.length}
+        {batchSize > 0 && queue.length > batchSize && (
+          <span className="text-gray-300"> &middot; 第 {Math.floor(batchStart / effectiveSize) + 1} 组</span>
+        )}
       </p>
 
-      {/* Card with animation */}
+      {/* Card */}
       <div className="w-full">
         <AnimatePresence mode="wait">
           {currentWord && (
             <motion.div
               key={currentWord.id}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              style={{ willChange: 'transform, opacity' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
             >
-              <Card word={currentWord} revealed={revealed} onReveal={() => {
-                setRevealed(true)
-                onSpeak(currentWord.word)
-              }} />
+              <Card
+                word={currentWord}
+                revealed={revealed}
+                onReveal={() => {
+                  setRevealed(true)
+                  onSpeak(currentWord.word)
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Action row: back + speak */}
+      {/* Actions */}
       <div className="flex items-center justify-center gap-6 w-full">
         <button
           onClick={goBack}
@@ -146,7 +217,7 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
           }`}
           title="上一张 (←)"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
           上一张
@@ -158,7 +229,7 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
             className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
             title="发音 (Space)"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
               <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
@@ -171,9 +242,9 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
       {/* Rating buttons */}
       {revealed && currentWord && (
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15 }}
+          transition={{ duration: 0.12 }}
           className="flex gap-3 w-full"
         >
           <button
@@ -208,14 +279,13 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
       )}
 
       {/* Hints */}
-      {revealed && (
+      {revealed ? (
         <p className="text-xs text-gray-300">
-          1 重来 · 2 困难 · 3 良好 · 4 简单 · ← 上一张 · → 下一张
+          1 重来 &middot; 2 困难 &middot; 3 良好 &middot; 4 简单 &middot; &larr; 上一张 &middot; &rarr; 下一张
         </p>
-      )}
-      {!revealed && (
+      ) : (
         <p className="text-xs text-gray-300">
-          Space 显示释义 · ← 上一张 · → 下一张
+          Space 显示释义 &middot; &larr; 上一张 &middot; &rarr; 下一张
         </p>
       )}
     </div>
