@@ -1,6 +1,6 @@
 # VocabCard — 英语单词卡片记忆
 
-基于 SM-2 间隔重复算法的词汇记忆工具。150 个 CET-6 核心词汇，渐变质感卡片，楷体中文释义 clip-path reveal 动画，键盘驱动的分组学习体验。
+基于 SM-2 间隔重复算法的词汇记忆工具。500 个 CET-6 核心词汇，渐变质感卡片，楷体中文释义 clip-path reveal 动画，键盘驱动的分组学习体验。
 
 ## 界面
 
@@ -48,7 +48,7 @@ React 19 · TypeScript · Tailwind CSS 3 · Framer Motion · React Router 7 · V
 - 系统楷体 + CSS clip-path reveal，无需加载字体文件或 JS 逐字动画库
 
 **不足**
-- 词库仅 50 词，暂不支持自定义导入
+- 词库仅 500 词，暂不支持自定义导入
 - Web Speech API 浏览器语音质量不一致（Chrome 最优），首次调用有 ~200-500ms 冷启动延迟
 - 无图片辅助记忆，纯文字卡片对抽象词汇联想有限
 - localStorage 无法跨设备同步

@@ -108,7 +108,7 @@ function Onboarding({ onStart }: { onStart: (size: number) => void }) {
 
         <h1 className="text-2xl font-bold text-gray-900 mb-2">VocabCard</h1>
         <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-          150 个 CET-6 核心词汇
+          500 个 CET-6 核心词汇
           <br />
           科学间隔重复 &middot; 键盘高效记忆
         </p>
