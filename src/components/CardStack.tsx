@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Card from './Card'
 import type { Word } from '../data/words'
@@ -13,16 +13,26 @@ interface CardStackProps {
 export default function CardStack({ words, queue, onRate, onSpeak }: CardStackProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
+  const [history, setHistory] = useState<number[]>([])
 
   const currentWordId = queue[currentIndex]
   const currentWord = words.find((w) => w.id === currentWordId) ?? null
   const isFinished = currentIndex >= queue.length
   const progress = queue.length > 0 ? ((currentIndex) / queue.length) * 100 : 0
 
-  const advance = () => {
+  const advance = useCallback(() => {
+    setHistory((h) => [...h, currentIndex])
     setRevealed(false)
-    setTimeout(() => setCurrentIndex((i) => i + 1), 50)
-  }
+    requestAnimationFrame(() => setCurrentIndex((i) => i + 1))
+  }, [currentIndex])
+
+  const goBack = useCallback(() => {
+    if (history.length === 0) return
+    const prevIndex = history[history.length - 1]
+    setHistory((h) => h.slice(0, -1))
+    setRevealed(true)
+    setCurrentIndex(prevIndex)
+  }, [history])
 
   const handleRate = (rating: 0 | 1 | 2 | 3) => {
     if (!currentWord) return
@@ -43,12 +53,17 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
           if (currentWord) onSpeak(currentWord.word)
         }
       }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        goBack()
+      }
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         if (!revealed) {
           setRevealed(true)
+          if (currentWord) onSpeak(currentWord.word)
         } else {
-          handleRate(2) // Good
+          handleRate(2)
         }
       }
       if (!revealed) return
@@ -59,12 +74,12 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [currentIndex, revealed, isFinished, currentWord])
+  }, [currentIndex, revealed, isFinished, currentWord, goBack])
 
   if (isFinished) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[420px] gap-6">
-        <div className="text-6xl">🎉</div>
+        <div className="text-6xl">&#127881;</div>
         <h3 className="text-2xl font-semibold text-gray-800">本轮学习完成</h3>
         <p className="text-gray-500">
           复习了 {queue.length} 张卡片，继续保持！
@@ -72,6 +87,7 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
         <button
           onClick={() => {
             setCurrentIndex(0)
+            setHistory([])
             setRevealed(false)
           }}
           className="mt-4 px-8 py-3 bg-gray-900 text-white rounded-2xl font-medium
@@ -90,7 +106,7 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
         <motion.div
           className="h-full bg-gray-800 rounded-full"
           animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
         />
       </div>
       <p className="text-xs text-gray-400 -mt-4">
@@ -98,15 +114,16 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
       </p>
 
       {/* Card with animation */}
-      <div className="w-full relative">
+      <div className="w-full">
         <AnimatePresence mode="wait">
           {currentWord && (
             <motion.div
               key={currentWord.id}
-              initial={{ opacity: 0, x: 40, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -40, scale: 0.95 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{ willChange: 'transform, opacity' }}
             >
               <Card word={currentWord} revealed={revealed} onReveal={() => {
                 setRevealed(true)
@@ -117,28 +134,46 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
         </AnimatePresence>
       </div>
 
-      {/* Speak button */}
-      {currentWord && (
+      {/* Action row: back + speak */}
+      <div className="flex items-center justify-center gap-6 w-full">
         <button
-          onClick={() => onSpeak(currentWord.word)}
-          className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
-          title="发音 (Space)"
+          onClick={goBack}
+          disabled={history.length === 0}
+          className={`flex items-center gap-1.5 text-sm transition-colors ${
+            history.length === 0
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'text-gray-400 hover:text-gray-600'
+          }`}
+          title="上一张 (←)"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
           </svg>
-          <span className="text-sm">发音</span>
+          上一张
         </button>
-      )}
 
-      {/* Rating buttons — show after reveal */}
+        {currentWord && (
+          <button
+            onClick={() => onSpeak(currentWord.word)}
+            className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
+            title="发音 (Space)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            <span className="text-sm">发音</span>
+          </button>
+        )}
+      </div>
+
+      {/* Rating buttons */}
       {revealed && currentWord && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.15 }}
           className="flex gap-3 w-full"
         >
           <button
@@ -172,15 +207,15 @@ export default function CardStack({ words, queue, onRate, onSpeak }: CardStackPr
         </motion.div>
       )}
 
-      {/* Keyboard hints */}
+      {/* Hints */}
       {revealed && (
         <p className="text-xs text-gray-300">
-          键盘: 1 重来 · 2 困难 · 3 良好 · 4 简单 · → 快速通过
+          1 重来 · 2 困难 · 3 良好 · 4 简单 · ← 上一张 · → 下一张
         </p>
       )}
       {!revealed && (
         <p className="text-xs text-gray-300">
-          键盘: Space 显示释义 · → 下一张
+          Space 显示释义 · ← 上一张 · → 下一张
         </p>
       )}
     </div>
